@@ -21,6 +21,7 @@ var addOns = listOf(
     "bugtracker",
     "callgraph",
     "callhome",
+    "cherrybomb",
     "codedx",
     "commonlib",
     "coreLang",
@@ -43,8 +44,6 @@ var addOns = listOf(
     "groovy",
     "highlighter",
     "imagelocationscanner",
-    "importLogFiles",
-    "importurls",
     "invoke",
     "jruby",
     "jsonview",
@@ -69,8 +68,6 @@ var addOns = listOf(
     "reveal",
     "revisit",
     "saml",
-    "saverawmessage",
-    "savexmlmessage",
     "scripts",
     "selenium",
     "sequence",
@@ -111,3 +108,4 @@ fun setUpProject(parentDir: File, project: ProjectDescriptor) {
     }
     project.children.forEach { project -> setUpProject(project.parent!!.projectDir, project) }
 }
+
