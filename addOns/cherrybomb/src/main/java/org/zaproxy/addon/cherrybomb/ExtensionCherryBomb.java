@@ -20,7 +20,9 @@
 package org.zaproxy.addon.cherrybomb;
 
 import java.awt.CardLayout;
+import java.awt.Component;
 import java.awt.Font;
+import java.awt.GridLayout;
 import java.io.File;
 import java.io.ObjectOutputStream;
 import java.io.OutputStreamWriter;
@@ -28,7 +30,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.SQLException;
 
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
 import javax.swing.JTextPane;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -71,6 +79,7 @@ import net.sf.json.JSONObject;
  */
 public class ExtensionCherryBomb extends ExtensionAdaptor {
     public static String  message;
+    public static boolean website_exist=false;
     // The name is public so that other extensions can access it
     public static final String NAME = "ExtensionCherryBomb";
 
@@ -160,69 +169,17 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 
             menuExample.addActionListener(
             	    e -> {
-                        // This is where you do what you want to do.
-                        // In this case we'll just show a popup message.
-            	    	JSONArray array = new JSONArray();
-       	    		 for ( int i = 0 ; i < 10000 ; i++) {
+            	    	String[] arr = PopupMessage();//display the menu popup
+            	    	CreateJson(arr[0]);
+              	    	System.out.println(message);
+              	    	if (ExtensionCherryBomb.website_exist){
+              	    		System.out.println("Ok");
+              	    	}
+              	    	else {
+              	    		System.out.println("Err");
+              	    		JOptionPane.showMessageDialog(popupMsgMenuExample, "Website not Found.","Error", getOrder(), ICON);
+              	    	}
 
-            	    	 try {
-            	    		 	String site = "www.exploit-db.com";
-                 	    	    JSONObject item = new JSONObject();
-            	    		// 	System.out.println(i);
-								HistoryReference history = new HistoryReference(i);
-								HttpMessage http_mess = new HttpMessage(history.getHttpMessage());
-							 //   System.out.println(http_mess.getRequestHeader().toString());
-							 //   System.out.println(http_mess.getResponseHeader().toString());
-							    
-							    DefaultHistoryReferencesTableEntry table = new DefaultHistoryReferencesTableEntry(history, HistoryReferencesTableModel.Column.values());
-						//	    System.out.println("history: "+table.getHistoryId());
-						//	    System.out.println(table.getUri());
-							//    System.out.println("hostname: " +table.getHostName());
-							    if(table.getHostName().equals(site)) {
-								    if (!table.getUri().contains(".jsp") && !table.getUri().contains(".css") && !table.getUri().contains(".js") && !table.getUri().contains(".html") && !table.getUri().contains(".ico")  && !table.getUri().contains(".png")) {
-								    	//System.out.println(table.getUri());
-								    	  item.put("request",http_mess.getRequestHeader().toString());
-										    item.put("response",http_mess.getResponseHeader().toString() );
-					            	    	array.add(item);
-								    }
-								  
-
-							    }
-							    //www.exploit-db.com
-
-            	    		 }
-					 
-
-
-						catch (HttpMalformedHeaderException | DatabaseException | JSONException e1) {
-							// TODO Auto-generated catch block
-						//	e1.printStackTrace();
-							System.out.println("error");
-						}
-             	    	JSONObject json = new JSONObject();
-             	    	try {
-							json.put("session",array);
-							ExtensionCherryBomb.message = json.toString();
-							System.out.println(message);
-							/*
-							  Socket socket = new Socket("localhost", 7777);
-						//      ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
-							  Socket s = new Socket("192.168.0.100", 7777);
-							  try (OutputStreamWriter out = new OutputStreamWriter(
-							          s.getOutputStream(), StandardCharsets.UTF_8)) {
-							      out.write(json.toString());
-							      						      System.out.println("Connected!");
-
-							      
-							  }
-							  */
-						} catch (JSONException e1) {
-							// TODO Auto-generated catch block
-							e1.printStackTrace();
-						}
-
-            	    	 
-       	    		 }
                         View.getSingleton()
                                 .showMessageDialog(
                                         Constant.messages.getString(PREFIX + ".topmenu.tools.msg"));
@@ -232,6 +189,120 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         }
         return menuExample;
     }
+    private String[] PopupMessage() {
+    	String[] arr= {"","",""};
+    	JTextField field1 = new JTextField("");
+        JTextField field2 = new JTextField("");
+        TextPrompt placeholder1 = new TextPrompt("www.google.com", field1);
+        TextPrompt placeholder2 = new TextPrompt("token", field2);
+        placeholder1.changeAlpha(0.75f); placeholder1.changeStyle(Font.ITALIC);
+        placeholder2.changeAlpha(0.75f); placeholder2.changeStyle(Font.ITALIC);
+        
+        String[] possibilities = {"Map", "Decide", "Regenerate Map"};
+         
+
+        final JComboBox<String> combo = new JComboBox<>(possibilities);
+        
+
+        JPanel panel = new JPanel(new GridLayout(4, 3));
+        panel.add(new JLabel("Website to attack:"));
+        panel.add(field1);
+        panel.add(new JLabel("API KEY :"));
+        panel.add(field2);
+        
+        String s = (String)JOptionPane.showInputDialog(
+                popupMsgMenuExample,
+                "",
+                "Customized Dialog",
+                JOptionPane.PLAIN_MESSAGE,
+                ICON,
+                possibilities,
+                "Map");
+
+        
+        
+        int result = JOptionPane.showConfirmDialog(null, panel, "CherryBomb Configuration",
+            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
+        if (result == JOptionPane.OK_OPTION) {
+            System.out.println(
+                 " " + field1.getText() + field2.getText());
+        } else {
+            System.out.println("Cancelled");
+        }
+        arr[0]=field1.getText();
+        arr[1]=field2.getText();
+        arr[2]=s;
+        return arr;
+    }
+    private JSONObject CreateJson(String website) {
+	     JSONObject json = new JSONObject();
+	   	 ExtensionHistory history1 = new ExtensionHistory();
+	 	 int lastRef = history1.getLastHistoryId();
+	     JSONArray array = new JSONArray();
+		 for ( int x = 1;  x <= lastRef ; x++) {
+			 try {
+			 	//String site = field1.getText();
+		    	JSONObject item = new JSONObject();
+			// 	System.out.println(i);
+				HistoryReference history = new HistoryReference(x);
+		    	//    HistoryReference history = history1.getHistoryReference(x);
+				HttpMessage http_mess = new HttpMessage(history.getHttpMessage());
+			 //   System.out.println(http_mess.getRequestHeader().toString());   System.out.println(http_mess.getResponseHeader().toString());
+			    DefaultHistoryReferencesTableEntry table = new DefaultHistoryReferencesTableEntry(history, HistoryReferencesTableModel.Column.values());
+		//	    System.out.println("history: "+table.getHistoryId()); System.out.println(table.getUri()); System.out.println("hostname: " +table.getHostName());
+			    if(table.getHostName().equals(website)) {
+			    	ExtensionCherryBomb.website_exist= true;
+				    if (!table.getUri().contains(".jsp") && !table.getUri().contains(".css") && !table.getUri().contains(".js") && !table.getUri().contains(".html") && !table.getUri().contains(".ico")  && !table.getUri().contains(".png")) {
+				    	//System.out.println(table.getUri());
+				    	if (!http_mess.getResponseHeader().toString().contains("Content-Type: text/html")) {
+				    		item.put("request",http_mess.getRequestHeader().toString());
+						    item.put("response",http_mess.getResponseHeader().toString() );
+	            	    	array.add(item);
+				    	}
+				    	  
+				    }
+			    }
+			 }
+			 
+	 
+		catch (HttpMalformedHeaderException | DatabaseException | JSONException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+			//System.out.println("error");
+		}
+			 
+	 	
+	 	try {
+			json.put("session",array);
+			ExtensionCherryBomb.message = json.toString();
+			 // Socket socket = new Socket("localhost", 7777);
+		     // ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+			//  Socket s = new Socket("192.168.0.100", 7777);
+			 // try (OutputStreamWriter out = new OutputStreamWriter(
+			//  s.getOutputStream(), StandardCharsets.UTF_8)) {
+			 // out.write(json.toString());
+			  //    						      System.out.println("Connected!");
+	
+			      
+			  }
+			 
+		 catch (JSONException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+	
+		 
+		 }
+		 
+		 return json;
+	    	
+	    }
+    
+    
+    private void CreatingZIPFile (JSONObject JsonLogs) {
+    	
+    }
+    private void GetlengthofZip() {}
 
     private void displayFile(String file) {
         if (!View.isInitialised()) {
