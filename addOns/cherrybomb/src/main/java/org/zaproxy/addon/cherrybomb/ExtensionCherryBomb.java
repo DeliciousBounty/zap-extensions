@@ -20,15 +20,16 @@
 package org.zaproxy.addon.cherrybomb;
 
 import java.awt.CardLayout;
-import java.awt.Component;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.sql.SQLException;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.ZipOutputStream;
 
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
@@ -53,14 +54,8 @@ import org.parosproxy.paros.network.HttpMessage;
 import org.parosproxy.paros.view.View;
 import org.zaproxy.zap.utils.FontUtils;
 import org.zaproxy.zap.view.ZapMenuItem;
-import org.zaproxy.zap.view.table.AbstractCustomColumnHistoryReferencesTableModel;
 import org.zaproxy.zap.view.table.DefaultHistoryReferencesTableEntry;
-import org.zaproxy.zap.view.table.DefaultHistoryReferencesTableModel;
 import org.zaproxy.zap.view.table.HistoryReferencesTableModel;
-import org.zaproxy.zap.view.table.HistoryReferencesTableModel.Column;
-import java.io.Serializable;
-import java.net.Socket;
-
 //import org.json.JSONArray;
 //import org.json.JSONException;
 //import org.json.JSONObject;
@@ -106,6 +101,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
     private CherryBombAPI api;
 
     private static final Logger LOGGER = LogManager.getLogger(ExtensionCherryBomb.class);
+	private static final String possibilities = null;
 
     public ExtensionCherryBomb() {
         super(NAME);
@@ -170,10 +166,18 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
             menuExample.addActionListener(
             	    e -> {
             	    	String[] arr = PopupMessage();//display the menu popup
-            	    	CreateJson(arr[0]);
+            	    	JSONObject obj = CreateJson(arr[0]);
               	    	System.out.println(message);
               	    	if (ExtensionCherryBomb.website_exist){
               	    		System.out.println("Ok");
+              	    		try {
+								byte[] compress= CreatingZIPFile(obj);
+							} catch (IOException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}
+              	    	
+              	    		
               	    	}
               	    	else {
               	    		System.out.println("Err");
@@ -191,6 +195,8 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
     }
     private String[] PopupMessage() {
     	String[] arr= {"","",""};
+        JComboBox<String> comboBox = new JComboBox<>(new String[]{"Map", "Decide", "Regenerate Map"});
+
     	JTextField field1 = new JTextField("");
         JTextField field2 = new JTextField("");
         TextPrompt placeholder1 = new TextPrompt("www.google.com", field1);
@@ -198,40 +204,29 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         placeholder1.changeAlpha(0.75f); placeholder1.changeStyle(Font.ITALIC);
         placeholder2.changeAlpha(0.75f); placeholder2.changeStyle(Font.ITALIC);
         
-        String[] possibilities = {"Map", "Decide", "Regenerate Map"};
          
 
-        final JComboBox<String> combo = new JComboBox<>(possibilities);
         
 
         JPanel panel = new JPanel(new GridLayout(4, 3));
         panel.add(new JLabel("Website to attack:"));
         panel.add(field1);
-        panel.add(new JLabel("API KEY :"));
+        panel.add(new JLabel("API KEY:"));
         panel.add(field2);
-        
-        String s = (String)JOptionPane.showInputDialog(
-                popupMsgMenuExample,
-                "",
-                "Customized Dialog",
-                JOptionPane.PLAIN_MESSAGE,
-                ICON,
-                possibilities,
-                "Map");
-
-        
-        
+        panel.add(new JLabel("Choose an action:"));
+        panel.add(comboBox);
         int result = JOptionPane.showConfirmDialog(null, panel, "CherryBomb Configuration",
-            JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
-        if (result == JOptionPane.OK_OPTION) {
-            System.out.println(
-                 " " + field1.getText() + field2.getText());
-        } else {
-            System.out.println("Cancelled");
-        }
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
+            if (result == JOptionPane.OK_OPTION) {
+                System.out.println(
+                     " " + field1.getText() + field2.getText());
+            } else {
+                System.out.println("Cancelled");
+            }
+       
         arr[0]=field1.getText();
         arr[1]=field2.getText();
-        arr[2]=s;
+        arr[2]=(String)comboBox.getSelectedItem();
         return arr;
     }
     private JSONObject CreateJson(String website) {
@@ -299,9 +294,22 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 	    }
     
     
-    private void CreatingZIPFile (JSONObject JsonLogs) {
-    	
+    private byte[] CreatingZIPFile (JSONObject JsonLogs) throws IOException {
+    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	GZIPOutputStream gzipOut = new GZIPOutputStream(baos);
+    	ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut);
+    	objectOut.writeObject(JsonLogs);
+    	objectOut.close();
+    	byte[] bytes = baos.toByteArray();
+    	return bytes;
+
     }
+    
+    
+    
+    
+    
+    
     private void GetlengthofZip() {}
 
     private void displayFile(String file) {
