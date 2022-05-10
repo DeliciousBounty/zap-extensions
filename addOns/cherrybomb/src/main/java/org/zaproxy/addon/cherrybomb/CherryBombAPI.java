@@ -29,7 +29,7 @@ import org.zaproxy.zap.extension.api.ApiResponse;
 import org.zaproxy.zap.extension.api.ApiResponseElement;
 
 public class CherryBombAPI extends ApiImplementor {
-    private static final String PREFIX = "cherryBomb";
+    private static final String PREFIX = "Hey welcome ";
 
     private static final String ACTION_HELLO_WORLD = "helloWorld";
 

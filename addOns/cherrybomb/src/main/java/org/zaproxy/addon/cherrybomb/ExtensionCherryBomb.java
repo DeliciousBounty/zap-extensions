@@ -20,19 +20,23 @@
 package org.zaproxy.addon.cherrybomb;
 
 import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
-import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.zip.GZIPOutputStream;
-import java.util.zip.ZipOutputStream;
-
-import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -93,7 +97,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
             new ImageIcon(ExtensionCherryBomb.class.getResource(RESOURCES + "/hacker.png"));
 
     private static final String EXAMPLE_FILE = "example/ExampleFile.txt";
-
+    private static final String EXAMPLE_TITLE = "example/ExampleFile1.txt";
     private ZapMenuItem menuExample;
     private RightClickMsgMenu popupMsgMenuExample;
     private AbstractPanel statusPanel;
@@ -159,15 +163,17 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         return statusPanel;
     }
 
-    private ZapMenuItem getMenuExample() {
+    private ZapMenuItem getMenuExample() { //Start here
         if (menuExample == null) {
             menuExample = new ZapMenuItem(PREFIX + ".topmenu.tools.title");
-
             menuExample.addActionListener(
             	    e -> {
+            	    	displayFile(EXAMPLE_FILE);// display the first message
             	    	String[] arr = PopupMessage();//display the menu popup
-            	    	JSONObject obj = CreateJson(arr[0]);
+            	    	System.out.println("HOST choice: "+ arr[0]);
+            	    	JSONObject obj = CreateJsonFromLogs(arr[0]); //create logs 
               	    	System.out.println(message);
+              	    	System.out.println(obj);
               	    	if (ExtensionCherryBomb.website_exist){
               	    		System.out.println("Ok");
               	    		try {
@@ -176,6 +182,8 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 								// TODO Auto-generated catch block
 								e1.printStackTrace();
 							}
+							displayFile(EXAMPLE_TITLE);
+
               	    	
               	    		
               	    	}
@@ -188,67 +196,80 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
                                 .showMessageDialog(
                                         Constant.messages.getString(PREFIX + ".topmenu.tools.msg"));
                         // And display a file included with the add-on in the Output tab
-                        displayFile(EXAMPLE_FILE);
+                        //displayFile(EXAMPLE_FILE);
                     });
         }
         return menuExample;
     }
     private String[] PopupMessage() {
-    	String[] arr= {"","",""};
-        JComboBox<String> comboBox = new JComboBox<>(new String[]{"Map", "Decide", "Regenerate Map"});
-
-    	JTextField field1 = new JTextField("");
-        JTextField field2 = new JTextField("");
-        TextPrompt placeholder1 = new TextPrompt("www.google.com", field1);
-        TextPrompt placeholder2 = new TextPrompt("token", field2);
-        placeholder1.changeAlpha(0.75f); placeholder1.changeStyle(Font.ITALIC);
-        placeholder2.changeAlpha(0.75f); placeholder2.changeStyle(Font.ITALIC);
+    	String[] arr= {"",""};
+        String[] domain = new String[] {};
+        JComboBox<String> comboBox = new JComboBox<>(new String[]{"Map","Attack"});
+	    JComboBox<String> host_comboBox = new JComboBox<>() ;
+        JTextField token_field = new JTextField("");
+     //   TextPrompt placeholder1 = new TextPrompt("www.example.com", field1);
+        TextPrompt placeholder2 = new TextPrompt("token", token_field);
+    //    placeholder1.changeAlpha(0.75f); placeholder1.changeStyle(Font.ITALIC);
+        JPanel panel = new JPanel(new GridLayout(10,25));//10,20
+        JLabel token_label = new JLabel("API Key: ");
+        panel.add(token_label);
+        panel.add(token_field);
+        JButton button = new JButton("Check");
+        button.setPreferredSize(new Dimension(2,1));
+        panel.add(button);
         
-         
+ 		button.addActionListener(e -> {
+ 			ArrayList<String> domains = selectionButtonPressed(token_field.getText(),token_label);
+ 			token_label.setForeground(new Color(255,0,0));
+ 			if(domains.size() == 0) {
+ 				token_label.setText("Subdomain not config");
+ 			}
+ 			if  (domains.get(0)==null){
+ 				token_label.setText("Invalid Token");
 
-        
-
-        JPanel panel = new JPanel(new GridLayout(4, 3));
-        panel.add(new JLabel("Website to attack:"));
-        panel.add(field1);
-        panel.add(new JLabel("API KEY:"));
-        panel.add(field2);
-        panel.add(new JLabel("Choose an action:"));
+ 		}
+ 			else {
+ 				token_label.setText("");
+ 				for (String i : domains) {
+ 					System.out.println(i);
+ 			        host_comboBox.addItem(i);
+ 				}
+ 		
+ 			}
+ 		});
+        panel.add(new JLabel("Target Url: "));
+        panel.add(host_comboBox);
+        panel.add(new JLabel("Choose an action: "));
         panel.add(comboBox);
+        
+        
         int result = JOptionPane.showConfirmDialog(null, panel, "CherryBomb Configuration",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
+        /*
             if (result == JOptionPane.OK_OPTION) {
-                System.out.println(
-                     " " + field1.getText() + field2.getText());
+                System.out.println("ok");
             } else {
                 System.out.println("Cancelled");
-            }
+            }*/
        
-        arr[0]=field1.getText();
-        arr[1]=field2.getText();
-        arr[2]=(String)comboBox.getSelectedItem();
+        arr[0] = (String)host_comboBox.getSelectedItem();
+        arr[1] = (String)comboBox.getSelectedItem();
         return arr;
     }
-    private JSONObject CreateJson(String website) {
+    private JSONObject CreateJsonFromLogs(String website) {
 	     JSONObject json = new JSONObject();
 	   	 ExtensionHistory history1 = new ExtensionHistory();
 	 	 int lastRef = history1.getLastHistoryId();
 	     JSONArray array = new JSONArray();
 		 for ( int x = 1;  x <= lastRef ; x++) {
 			 try {
-			 	//String site = field1.getText();
 		    	JSONObject item = new JSONObject();
-			// 	System.out.println(i);
 				HistoryReference history = new HistoryReference(x);
-		    	//    HistoryReference history = history1.getHistoryReference(x);
 				HttpMessage http_mess = new HttpMessage(history.getHttpMessage());
-			 //   System.out.println(http_mess.getRequestHeader().toString());   System.out.println(http_mess.getResponseHeader().toString());
 			    DefaultHistoryReferencesTableEntry table = new DefaultHistoryReferencesTableEntry(history, HistoryReferencesTableModel.Column.values());
-		//	    System.out.println("history: "+table.getHistoryId()); System.out.println(table.getUri()); System.out.println("hostname: " +table.getHostName());
 			    if(table.getHostName().equals(website)) {
 			    	ExtensionCherryBomb.website_exist= true;
 				    if (!table.getUri().contains(".jsp") && !table.getUri().contains(".css") && !table.getUri().contains(".js") && !table.getUri().contains(".html") && !table.getUri().contains(".ico")  && !table.getUri().contains(".png")) {
-				    	//System.out.println(table.getUri());
 				    	if (!http_mess.getResponseHeader().toString().contains("Content-Type: text/html")) {
 				    		item.put("request",http_mess.getRequestHeader().toString());
 						    item.put("response",http_mess.getResponseHeader().toString() );
@@ -258,27 +279,15 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 				    }
 			    }
 			 }
-			 
-	 
 		catch (HttpMalformedHeaderException | DatabaseException | JSONException e1) {
 			// TODO Auto-generated catch block
 			e1.printStackTrace();
-			//System.out.println("error");
 		}
 			 
 	 	
 	 	try {
 			json.put("session",array);
-			ExtensionCherryBomb.message = json.toString();
-			 // Socket socket = new Socket("localhost", 7777);
-		     // ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
-			//  Socket s = new Socket("192.168.0.100", 7777);
-			 // try (OutputStreamWriter out = new OutputStreamWriter(
-			//  s.getOutputStream(), StandardCharsets.UTF_8)) {
-			 // out.write(json.toString());
-			  //    						      System.out.println("Connected!");
-	
-			      
+			ExtensionCherryBomb.message = json.toString();  
 			  }
 			 
 		 catch (JSONException e1) {
@@ -302,15 +311,75 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
     	objectOut.close();
     	byte[] bytes = baos.toByteArray();
     	return bytes;
+    	/*decompress
+  ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+GZIPInputStream gzipIn = new GZIPInputStream(bais);
+ObjectInputStream objectIn = new ObjectInputStream(gzipIn);
+MyObject myObj1 = (MyObject) objectIn.readObject();
+MyObject myObj2 = (MyObject) objectIn.readObject();
+objectIn.close();
+  
+    	 */
 
+    	/*another solution to compress string
+    	 
+    	    if (str == null || str.length() == 0) {
+        return str;
+    }
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    GZIPOutputStream gzip = new GZIPOutputStream(out);
+    gzip.write(str.getBytes());
+    gzip.close();
+    String outStr = out.toString("UTF-8");
+    return outStr;
+ }
+    	 
+    	 
+    	 
+    	 
+    	 
+    	 */
+    }
+    
+    
+    public static  ArrayList<String> selectionButtonPressed ( String token, JLabel lab) { //method to receive subdomains
+    	String url = "https://saas.blstsecurity.com/zap/get_domains";
+        JSONArray array = new JSONArray();
+    	if (!lab.getText().equals("")) {
+             try {
+             HttpClient client = HttpClient.newHttpClient();
+             HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("Authorization", token).build();
+             HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
+    	     array.add(response.body());
+             }
+             catch (IOException | InterruptedException e) {
+        	     e.printStackTrace();
+        	  }
+             ArrayList<String> arrays = new ArrayList<String>();
+
+             try {
+                    JSONArray json_arr = array.getJSONObject(0).getJSONArray("sub_domains");
+    	     		for(int i = 0; json_arr.size() > i; i++) {
+    	     	       arrays.add(json_arr.getString(i));
+    	     		}	
+    	     		return  arrays;
+             }
+             catch (JSONException j) {
+            	 arrays.add(null);
+            	 return arrays;
+             }
+        } else {
+             lab.setText("Please enter your token");
+             
+         }
+		return null;
+    	
+    	 
     }
     
     
     
-    
-    
-    
-    private void GetlengthofZip() {}
+    private void  SendtoTheServer(String action,String hostname, byte[] CompressLogs) {}
 
     private void displayFile(String file) {
         if (!View.isInitialised()) {
@@ -336,7 +405,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
             View.getSingleton().getOutputPanel().setTabFocus();
         } catch (Exception e) {
             // Something unexpected went wrong, write the error to the log
-            LOGGER.error(e.getMessage(), e);
+         //   LOGGER.error(e.getMessage(), e);
         }
     }
 
