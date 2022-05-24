@@ -31,6 +31,8 @@ import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
+import java.net.http.HttpRequest.Builder;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -172,20 +174,14 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
             	    	String[] arr = PopupMessage();//display the menu popup
             	    	System.out.println("HOST choice: "+ arr[0]);
             	    	JSONObject obj = CreateJsonFromLogs(arr[0]); //create logs 
+             	    	String data_to_send = obj.toString();
               	    	System.out.println(message);
               	    	System.out.println(obj);
               	    	if (ExtensionCherryBomb.website_exist){
-              	    		System.out.println("Ok");
-              	    		try {
-								byte[] compress= CreatingZIPFile(obj);
-							} catch (IOException e1) {
-								// TODO Auto-generated catch block
-								e1.printStackTrace();
-							}
+							System.out.println("Sending ..."+ obj.toString());
+							SendtoTheServer( arr[0], obj.toString(), arr[1] );
+							System.out.println("token from the array: " +arr[1]);
 							displayFile(EXAMPLE_TITLE);
-
-              	    	
-              	    		
               	    	}
               	    	else {
               	    		System.out.println("Err");
@@ -220,6 +216,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         
  		button.addActionListener(e -> {
  			ArrayList<String> domains = selectionButtonPressed(token_field.getText(),token_label);
+ 			System.out.println(token_field.getText());
  			token_label.setForeground(new Color(255,0,0));
  			if(domains.size() == 0) {
  				token_label.setText("Subdomain not config");
@@ -244,16 +241,9 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         
         
         int result = JOptionPane.showConfirmDialog(null, panel, "CherryBomb Configuration",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
-        /*
-            if (result == JOptionPane.OK_OPTION) {
-                System.out.println("ok");
-            } else {
-                System.out.println("Cancelled");
-            }*/
-       
+        JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE,ICON);
         arr[0] = (String)host_comboBox.getSelectedItem();
-        arr[1] = (String)comboBox.getSelectedItem();
+        arr[1] = token_field.getText();
         return arr;
     }
     private JSONObject CreateJsonFromLogs(String website) {
@@ -292,7 +282,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 			 
 		 catch (JSONException e1) {
 			// TODO Auto-generated catch block
-			e1.printStackTrace();
+		//	e1.printStackTrace();
 		}
 	
 		 
@@ -348,7 +338,7 @@ objectIn.close();
     	if (!lab.getText().equals("")) {
              try {
              HttpClient client = HttpClient.newHttpClient();
-             HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("Authorization", token).build();
+             HttpRequest req = HttpRequest.newBuilder().uri(URI.create(url)).header("x-blst-key", token).build();
              HttpResponse<String> response = client.send(req, HttpResponse.BodyHandlers.ofString());
     	     array.add(response.body());
              }
@@ -379,8 +369,37 @@ objectIn.close();
     
     
     
-    private void  SendtoTheServer(String action,String hostname, byte[] CompressLogs) {}
+    private void  SendtoTheServer(String hostname, String CompressLogs, String token ) { //send data
+        JSONObject json = new JSONObject();
+        json.put("data", CompressLogs.toString()+" ");
+        json.put("file", "file.txt");
+        json.put("domain", "https://"+hostname);
+        json.put("access_token", "83e3ac3a-050b-40cd-86ed-f84c1b721e77");
+    	String url = "https://saas.blstsecurity.com/zap/upload_map";
+    	HttpClient client = HttpClient.newHttpClient();
+        HttpRequest request =  HttpRequest.newBuilder()
+        		.POST(BodyPublishers.ofString(json.toString()))
+        		.uri(URI.create(url))
+        		.setHeader("Authorization", token)
+                .header("Content-Type", "application/json")
+        		.build();
+       
 
+         HttpResponse<String> response;
+		try {
+			response = client.send(request, HttpResponse.BodyHandlers.ofString());
+			System.out.println(response);
+		} catch (IOException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+         
+
+        
+             
+    	
+    }
+    public int CheckSizeLogs(byte compress_logs) {return 0;}
     private void displayFile(String file) {
         if (!View.isInitialised()) {
             // Running in daemon mode, shouldnt have been called
