@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 package org.zaproxy.addon.cherrybomb;
-
+import java.lang.Thread;
 import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -174,13 +174,17 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
             	    	String[] arr = PopupMessage();//display the menu popup
             	    	System.out.println("HOST choice: "+ arr[0]);
             	    	JSONObject obj = CreateJsonFromLogs(arr[0]); //create logs 
-             	    	String data_to_send = obj.toString();
+             	    //	System.out.println(data_to_send);
               	    	System.out.println(message);
-              	    	System.out.println(obj);
               	    	if (ExtensionCherryBomb.website_exist){
-							System.out.println("Sending ..."+ obj.toString());
-							SendtoTheServer( arr[0], obj.toString(), arr[1] );
-							System.out.println("token from the array: " +arr[1]);
+              	    		System.out.println("Prepare to send..");
+              	    		try {
+								Thread.sleep(3000);
+							} catch (InterruptedException e1) {
+								// TODO Auto-generated catch block
+								e1.printStackTrace();
+							}
+							SendtoTheServer( arr[0], obj, arr[1]);
 							displayFile(EXAMPLE_TITLE);
               	    	}
               	    	else {
@@ -247,6 +251,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
         return arr;
     }
     private JSONObject CreateJsonFromLogs(String website) {
+    	JSONObject[] session = new JSONObject[0];
 	     JSONObject json = new JSONObject();
 	   	 ExtensionHistory history1 = new ExtensionHistory();
 	 	 int lastRef = history1.getLastHistoryId();
@@ -287,7 +292,7 @@ public class ExtensionCherryBomb extends ExtensionAdaptor {
 	
 		 
 		 }
-		 
+		// session[0]=(json);
 		 return json;
 	    	
 	    }
@@ -367,12 +372,33 @@ objectIn.close();
     	 
     }
     
+    private String PrepareTosend(JSONObject logs) {
+        String result = "["+logs.toString().replaceAll("\\\"", "\\\\\"")+"]";
+        System.out.println("Logs to send....... "+ result);
+        try {
+			Thread.sleep(5000);
+		} catch (InterruptedException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+    	
+    	return result;
+    			
+    }
     
-    
-    private void  SendtoTheServer(String hostname, String CompressLogs, String token ) { //send data
+    private String  SendtoTheServer(String hostname, JSONObject CompressLogs, String token) {
+    //	String result = PrepareTosend(CompressLogs);
+    	//String[] array = new String[0];//send data
+    	//array[0]= CompressLogs;
+		//String str = "["+CompressLogs.toString()+"]";
+       // String result = str.replaceAll("\\'", "\\\\\"");
+
+		System.out.println("popop");
+		System.out.println("Sending ..."+ CompressLogs.toString());
+	//	String sf1=String.format("name is %s",name);  
         JSONObject json = new JSONObject();
-        json.put("data", CompressLogs.toString()+" ");
-        json.put("file", "file.txt");
+        json.put("data","["+ CompressLogs.toString()+"] ");
+        json.put("file", "files.txt");
         json.put("domain", "https://"+hostname);
         json.put("access_token", "83e3ac3a-050b-40cd-86ed-f84c1b721e77");
     	String url = "https://saas.blstsecurity.com/zap/upload_map";
@@ -388,15 +414,16 @@ objectIn.close();
          HttpResponse<String> response;
 		try {
 			response = client.send(request, HttpResponse.BodyHandlers.ofString());
-			System.out.println(response);
+			  System.out.println("response:" +response);
+		      return response.toString();       
+
 		} catch (IOException | InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
          
 
-        
-             
+        return "null";
     	
     }
     public int CheckSizeLogs(byte compress_logs) {return 0;}
